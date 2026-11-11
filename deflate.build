@@ -1,0 +1,3 @@
+c_headers = ["include/deflate.h"];
+cmake_target = "goose_deflate";
+exclude = ["tests", "bench", "examples", "vendor", ".amp", ".ci"];

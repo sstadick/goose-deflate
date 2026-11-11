@@ -1,0 +1,12 @@
+cmake_minimum_required(VERSION 3.20)
+project(goose_deflate LANGUAGES C)
+
+set(LIBDEFLATE_BUILD_STATIC_LIB ON CACHE BOOL "" FORCE)
+set(LIBDEFLATE_BUILD_SHARED_LIB OFF CACHE BOOL "" FORCE)
+set(LIBDEFLATE_BUILD_GZIP OFF CACHE BOOL "" FORCE)
+set(LIBDEFLATE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(LIBDEFLATE_INSTALL OFF CACHE BOOL "" FORCE)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+add_subdirectory(vendor/libdeflate)
+add_library(goose_deflate STATIC src/native.c)
+target_link_libraries(goose_deflate PUBLIC libdeflate_static)

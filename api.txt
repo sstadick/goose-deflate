@@ -1,0 +1,13 @@
+deflate::Format
+deflate::Status
+deflate::Result
+deflate::Compressor
+deflate::Decompressor
+deflate::compressor
+deflate::decompressor
+deflate::close
+deflate::bound
+deflate::compress
+deflate::decompress
+deflate::crc32
+deflate::adler32
