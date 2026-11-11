@@ -8,8 +8,11 @@ are about the binding, not an advantage over libdeflate or a BAM throughput clai
 
 2026-11-11, AMD Ryzen 9 3950X, Linux 6.8 / glibc 2.39, pinned to logical CPU 12.
 Goose `74c641c5` (runtime `3025e5810379`), GCC 13.3.0, Clang 18.1.3,
-libdeflate 1.26. Goose/native application C uses `-O2`; the shared codec build
-uses CMake Release (`-O3 -DNDEBUG` on this host). No LTO or `-march=native`.
+libdeflate 1.26. Generated application C, the runtime, and the direct-C baseline
+use native `-O3`; the shared codec uses `-O3 -DNDEBUG`. Goose frontend inlining
+uses `-O2`, which is unrelated to native optimization. The runner emits standalone
+C and compiles it directly because `goose build` hard-codes native `-O2`.
+No LTO or `-march=native`.
 This is a shared development host, not an isolated benchmark machine; small
 differences should not be interpreted as wins or regressions on their own.
 
@@ -17,10 +20,10 @@ differences should not be interpreted as wins or regressions on their own.
 
 | Compiler | Operation | Goose MB/s | Goose time / direct C time |
 | --- | --- | ---: | ---: |
-| GCC | Compress | 279.7 | 0.997 |
-| GCC | Decompress | 967.0 | 0.997 |
-| Clang | Compress | 278.1 | 1.005 |
-| Clang | Decompress | 990.3 | 0.996 |
+| GCC | Compress | 281.5 | 1.001 |
+| GCC | Decompress | 992.0 | 0.995 |
+| Clang | Compress | 281.5 | 0.999 |
+| Clang | Decompress | 988.7 | 1.000 |
 
 MB/s uses uncompressed bytes and decimal megabytes. Ratio 1.00 means equal
 time; values above 1.00 mean Goose took longer. These are medians of seven
@@ -32,17 +35,17 @@ and two checksum cases, each with both input kinds):
 
 | Compiler | Input bytes | Median ratio | Minimum–maximum ratio |
 | --- | ---: | ---: | ---: |
-| GCC | 64 | 1.005 | 0.957–1.049 |
-| GCC | 4,096 | 0.997 | 0.963–1.046 |
-| GCC | 65,536 | 1.000 | 0.952–1.025 |
-| GCC | 1,048,576 | 1.000 | 0.999–1.004 |
-| Clang | 64 | 1.003 | 0.994–1.054 |
-| Clang | 4,096 | 1.001 | 0.997–1.031 |
-| Clang | 65,536 | 1.000 | 0.995–1.006 |
-| Clang | 1,048,576 | 1.000 | 0.993–1.003 |
+| GCC | 64 | 1.002 | 0.988–1.081 |
+| GCC | 4,096 | 1.000 | 0.979–1.050 |
+| GCC | 65,536 | 1.000 | 0.995–1.004 |
+| GCC | 1,048,576 | 1.000 | 0.994–1.004 |
+| Clang | 64 | 1.002 | 1.000–1.047 |
+| Clang | 4,096 | 1.000 | 0.996–1.015 |
+| Clang | 65,536 | 1.000 | 0.989–1.002 |
+| Clang | 1,048,576 | 0.999 | 0.973–1.020 |
 
-The largest relative overhead was Clang CRC-32 on 64 random bytes:
-6.655 ns in Goose versus 6.312 ns in direct C (**+0.343 ns, +5.4%**).
+The largest relative overhead was GCC CRC-32 on 64 read-like bytes:
+6.337 ns in Goose versus 5.864 ns in direct C (**+0.473 ns, +8.1%**).
 The API's closed-handle/empty-input checks and returned counts are not free
 for extremely short calls. They do not introduce a second out-of-line native
 adapter call: inspecting both optimized binaries found direct libdeflate calls
@@ -64,7 +67,7 @@ taskset -c 12 python3 bench/run.py --cc gcc clang --output bench/results.json
 ```
 
 Choose an available CPU; omit `taskset` where unavailable. The runner supports
-GCC/Clang command names or paths. Python 3.9+ and Goose are required. Use
+GCC/Clang command names or paths. Python 3.9+, CMake, and Goose are required. Use
 `--rounds`, `--seconds`, or `--sizes` for a shorter exploratory run; defaults
 are seven rounds, approximately 50 ms per sample, and the four sizes above.
 `GOOSE` selects the compiler. Raw samples, versions, iteration counts, and
@@ -89,6 +92,13 @@ affinity from the recorded run are in [results.json](results.json).
 Inspect the native boundary on Linux with:
 
 ```sh
-goose build bench/bench.goose --cc clang -O2 -o /tmp/goose-deflate-bench
-objdump -d /tmp/goose-deflate-bench | grep -E 'call.*<(gdf_|libdeflate_)'
+work=$(mktemp -d)
+goose -o "$work/bench.c" --standalone -O2 bench/bench.goose
+cmake -S vendor/libdeflate -B "$work/codec" -DCMAKE_C_COMPILER=clang \
+  -DCMAKE_BUILD_TYPE=Release '-DCMAKE_C_FLAGS_RELEASE=-O3 -DNDEBUG' \
+  -DLIBDEFLATE_BUILD_SHARED_LIB=OFF -DLIBDEFLATE_BUILD_GZIP=OFF
+cmake --build "$work/codec" --target libdeflate_static
+clang -O3 "$work/bench.c" "$work/codec/libdeflate.a" -lm -pthread -ldl -o "$work/bench"
+objdump -d "$work/bench" | grep -E 'call.*<(gdf_|libdeflate_)'
+rm -rf "$work"
 ```

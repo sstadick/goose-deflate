@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import platform
 import random
+import shutil
 import statistics
 import subprocess
 import tempfile
@@ -40,13 +41,32 @@ def main():
     report = {"platform": platform.platform(), "processor": platform.processor(),
               "goose": subprocess.check_output([goose, "--version"], text=True).strip(),
               "affinity": sorted(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else None,
+              "goose_inlining": "-O2", "native_flags": ["-O3"],
+              "codec_flags": ["-O3", "-DNDEBUG"],
               "rounds": args.rounds, "seconds": args.seconds, "results": []}
     with tempfile.TemporaryDirectory(prefix="goose-deflate-bench-") as temp:
         directory = Path(temp)
-        for cc in args.cc:
+        source = directory / "bench.c"
+        # Goose's -O2 controls inlining; goose build hard-codes native -O2.
+        # Emit the runtime with the program so every timed C path uses -O3.
+        subprocess.run([goose, "-o", str(source), "--standalone", "-O2",
+                        str(ROOT / "bench/bench.goose")], cwd=ROOT, check=True)
+        for index, cc in enumerate(args.cc):
             exe = directory / ("bench.exe" if os.name == "nt" else "bench")
-            subprocess.run([goose, "build", str(ROOT / "bench/bench.goose"), "--cc", cc,
-                            "-O2", "-o", str(exe)], cwd=ROOT, check=True)
+            build = directory / f"codec-{index}"
+            subprocess.run(["cmake", "-S", str(ROOT / "vendor/libdeflate"), "-B", str(build),
+                            "-DCMAKE_BUILD_TYPE=Release", f"-DCMAKE_C_COMPILER={shutil.which(cc) or cc}",
+                            "-DCMAKE_C_FLAGS_RELEASE=-O3 -DNDEBUG", "-DLIBDEFLATE_BUILD_SHARED_LIB=OFF",
+                            "-DLIBDEFLATE_BUILD_GZIP=OFF", "-DLIBDEFLATE_BUILD_TESTS=OFF"], check=True)
+            subprocess.run(["cmake", "--build", str(build), "--config", "Release",
+                            "--target", "libdeflate_static", "--verbose"], check=True)
+            archive, = build.rglob("libdeflate.a")
+            libraries = [] if os.name == "nt" else ["-lm", "-pthread"]
+            if platform.system() == "Linux":
+                libraries.append("-ldl")
+            command = [cc, "-O3", str(source), str(archive), "-o", str(exe), *libraries]
+            print("Native build:", command, flush=True)
+            subprocess.run(command, check=True)
             compiler = subprocess.check_output([cc, "--version"], text=True).splitlines()[0]
 
             def sample(mode, fmt, operation, iterations):
