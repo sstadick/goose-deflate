@@ -52,8 +52,8 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: aardappel/goose
-          # Compiler revision the library and benchmarks were developed with.
-          ref: 74c641c5ac6d762e57e3177678fe9dea414d042a
+          # Verified compiler revision; recorded benchmarks retain their original pin.
+          ref: d5ae5bbda990923fa4129f969c7f853c20d4d1e6
           path: .ci/goose
           persist-credentials: false
       - name: Check out goose-doc

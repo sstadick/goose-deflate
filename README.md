@@ -20,8 +20,9 @@ goose build examples/roundtrip.goose --cc clang -O2 -o roundtrip
 The local example imports `deflate from ".."` because it lives in `examples/`.
 For another application, save this complete program as `main.goose`; Goose
 fetches the package from GitHub. No other Goose packages are required.
-The example follows `main`; use a full commit SHA for a reproducible dependency.
-There is no tagged release yet.
+The example follows `main`; use a published tag from
+[Releases](https://github.com/sstadick/goose-deflate/releases) or a full commit SHA
+for a reproducible dependency.
 
 ```goose
 import std;
@@ -50,7 +51,11 @@ fn main() {
 
 Requires Goose with package `c_headers` and CMake support, CMake 3.20+, and a
 native C compiler. Development and CI pin Goose
-[`74c641c5`](https://github.com/aardappel/goose/commit/74c641c5ac6d762e57e3177678fe9dea414d042a).
+[`d5ae5bbd`](https://github.com/aardappel/goose/commit/d5ae5bbda990923fa4129f969c7f853c20d4d1e6)
+(`v2026.4-20-gd5ae5bbd`, runtime `d521138194f1`). The original
+[`74c641c5`](https://github.com/aardappel/goose/commit/74c641c5ac6d762e57e3177678fe9dea414d042a)
+baseline also passes the Linux x86-64 checks; the recorded benchmarks retain
+that compiler and their original measurements.
 Even `goose run` needs a native compiler for libdeflate; TinyCC compiles the
 Goose program, not the codec. The package builds its vendored libdeflate 1.26
 through Goose's native build cache. No system libdeflate, Rust toolchain,
@@ -132,7 +137,8 @@ CI is configured for Linux x86-64/ARM64, macOS ARM64, and Windows x86-64, with
 GCC/Clang, Clang, and MSVC/clang-cl respectively. Only Linux x86-64 has been
 verified locally; the other platforms require their native CI runs. Version
 tags publish a source release and commit-linked API reference only after that
-matrix passes. No release has been published.
+matrix passes. Published versions and their API references are listed in
+[Releases](https://github.com/sstadick/goose-deflate/releases).
 
 ## License
 
