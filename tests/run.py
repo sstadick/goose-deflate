@@ -57,10 +57,14 @@ def main():
     args = parser.parse_args()
     goose = os.environ.get("GOOSE", "goose")
     source = ROOT / "tests/check.goose"
+    checkfree = ROOT / "tests/checkfree.goose"
     with tempfile.TemporaryDirectory(prefix="goose-deflate-tests-") as temp:
         directory = Path(temp)
         for opt in (0, 2):
             exercise([goose, "run", source, "--debug", f"-O{opt}", "--"], directory)
+            subprocess.run([goose, "run", str(checkfree), "--debug", f"-O{opt}"],
+                           cwd=ROOT, check=True)
+            print(f"Passed checkfree callers: TinyCC -O{opt}", flush=True)
         for cc in args.cc:
             exe = directory / ("check.exe" if os.name == "nt" else "check")
             # --debug makes native C unoptimized, regardless of Goose's -O2.
@@ -69,6 +73,10 @@ def main():
                 subprocess.run([goose, "build", str(source), *flags, "-O2", "--cc", cc,
                                 "-o", str(exe)], cwd=ROOT, check=True)
                 exercise([exe], directory)
+                subprocess.run([goose, "build", str(checkfree), *flags, "-O2", "--cc", cc,
+                                "-o", str(exe)], cwd=ROOT, check=True)
+                subprocess.run([str(exe)], cwd=directory, check=True)
+                print(f"Passed checkfree callers: {cc} {flags or ['optimized']}", flush=True)
 
 
 if __name__ == "__main__":

@@ -51,8 +51,8 @@ fn main() {
 
 Requires Goose with package `c_headers` and CMake support, CMake 3.20+, and a
 native C compiler. Development and CI pin Goose
-[`855f1037`](https://github.com/aardappel/goose/commit/855f1037a5ceee837ef270382ac8d26df47a7139)
-(`v2026.4-24-g855f1037`, runtime `d521138194f1`). The original
+[`4602c986`](https://github.com/aardappel/goose/commit/4602c98660676b2cb94bc9b06fec8c65b37fce92)
+(`v2026.4-26-g4602c986`, runtime `d521138194f1`). The original
 [`74c641c5`](https://github.com/aardappel/goose/commit/74c641c5ac6d762e57e3177678fe9dea414d042a)
 baseline also passes the Linux x86-64 checks; the recorded benchmarks retain
 that compiler and their original measurements.
@@ -132,6 +132,10 @@ bytes, empty input, 64 KiB boundaries, unaligned slices, undersized buffers,
 checksums, truncation, optional gzip filenames, concatenated members, and handle
 reuse/close. TinyCC runs with Goose optimization off/on; native compilers run
 both debug and optimized builds. Goose assertions remain active in both.
+The same backends also exercise the unannotated API from `checkfree` callers:
+Goose verifies the code they execute, not whether callees carry annotations.
+This verifies Goose bounds-check elimination, not native C memory safety;
+the buffer and handle contracts above still apply.
 
 CI is configured for Linux x86-64/ARM64, macOS ARM64, and Windows x86-64, with
 GCC/Clang, Clang, and MSVC/clang-cl respectively. Only Linux x86-64 has been
